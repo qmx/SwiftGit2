@@ -7,7 +7,7 @@
 //
 
 import Quick
-import SwiftGit2
+@testable import SwiftGit2
 
 class FixturesSpec: QuickSpec {
 	override class func spec() {

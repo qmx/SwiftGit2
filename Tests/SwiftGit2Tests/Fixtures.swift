@@ -6,7 +6,7 @@
 //  Copyright (c) 2014 GitHub, Inc. All rights reserved.
 //
 
-import SwiftGit2
+@testable import SwiftGit2
 import ZipArchive
 
 final class Fixtures {

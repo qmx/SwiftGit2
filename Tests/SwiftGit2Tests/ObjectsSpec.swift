@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import SwiftGit2
+@testable import SwiftGit2
 import Nimble
 import Quick
 import libgit2
