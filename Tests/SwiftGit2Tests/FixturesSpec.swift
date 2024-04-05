@@ -10,15 +10,15 @@ import Quick
 @testable import SwiftGit2
 
 class FixturesSpec: QuickSpec {
-	override class func spec() {
-		beforeSuite {
+    override class func spec() {
+        beforeSuite {
             _ = SwiftGit2.initialize()
-			Fixtures.sharedInstance.setUp()
-		}
+            Fixtures.sharedInstance.setUp()
+        }
 
-		afterSuite {
-			Fixtures.sharedInstance.tearDown()
+        afterSuite {
+            Fixtures.sharedInstance.tearDown()
             _ = SwiftGit2.shutdown()
-		}
-	}
+        }
+    }
 }
