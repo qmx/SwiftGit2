@@ -9,6 +9,7 @@
 import Foundation
 import libgit2
 
+/// Parameters: `path`, `completed_steps`, `total_steps`
 public typealias CheckoutProgressBlock = (String?, Int, Int) -> Void
 
 /// Helper function used as the libgit2 progress callback in git_checkout_options.
@@ -37,9 +38,9 @@ private func checkoutProgressCallback(path: UnsafePointer<Int8>?, completedSteps
 private func checkoutOptions(strategy: CheckoutStrategy,
                              progress: CheckoutProgressBlock? = nil) -> git_checkout_options
 {
-    // Do this because GIT_CHECKOUT_OPTIONS_INIT is unavailable in swift
+    // Do this because `git_checkout_options_init` is unavailable in swift
     let pointer = UnsafeMutablePointer<git_checkout_options>.allocate(capacity: 1)
-    git_checkout_init_options(pointer, UInt32(GIT_CHECKOUT_OPTIONS_VERSION))
+    git_checkout_options_init(pointer, UInt32(GIT_CHECKOUT_OPTIONS_VERSION))
     var options = pointer.move()
     pointer.deallocate()
 
@@ -150,7 +151,7 @@ public final class Repository {
     ///
     /// Returns a `Result` with a `Repository` or an error.
     public class func clone(from remoteURL: URL, to localURL: URL, localClone: Bool = false, bare: Bool = false,
-                            credentials: Credentials = .default, checkoutStrategy: CheckoutStrategy = .Safe,
+                            credentials: Credentials = .default, checkoutStrategy: CheckoutStrategy = .safe,
                             checkoutProgress: CheckoutProgressBlock? = nil) -> Result<Repository, NSError>
     {
         var options = cloneOptions(
@@ -179,7 +180,7 @@ public final class Repository {
     /// Create an instance with a libgit2 `git_repository` object.
     ///
     /// The Repository assumes ownership of the `git_repository` object.
-    public init(_ pointer: OpaquePointer) {
+    init(_ pointer: OpaquePointer) {
         self.pointer = pointer
 
         let path = git_repository_workdir(pointer)
@@ -193,7 +194,7 @@ public final class Repository {
     // MARK: - Properties
 
     /// The underlying libgit2 `git_repository` object.
-    public let pointer: OpaquePointer
+    let pointer: OpaquePointer
 
     /// The URL of the repository's working directory, or `nil` if the
     /// repository is bare.
@@ -210,12 +211,12 @@ public final class Repository {
     ///
     /// Returns the result of calling `transform` or an error if the object
     /// cannot be loaded.
-    private func withGitObject<T>(_ oid: OID, type: git_object_t,
+    private func withGitObject<T>(_ oid: OID, type: GitObjectType,
                                   transform: (OpaquePointer) -> Result<T, NSError>) -> Result<T, NSError>
     {
         var pointer: OpaquePointer? = nil
         var oid = oid.oid
-        let result = git_object_lookup(&pointer, self.pointer, &oid, type)
+        let result = git_object_lookup(&pointer, self.pointer, &oid, type.git_object_type)
 
         guard result == GIT_OK.rawValue else {
             return Result.failure(NSError(gitError: result, pointOfFailure: "git_object_lookup"))
@@ -226,11 +227,11 @@ public final class Repository {
         return value
     }
 
-    private func withGitObject<T>(_ oid: OID, type: git_object_t, transform: (OpaquePointer) -> T) -> Result<T, NSError> {
+    private func withGitObject<T>(_ oid: OID, type: GitObjectType, transform: (OpaquePointer) -> T) -> Result<T, NSError> {
         return withGitObject(oid, type: type) { Result.success(transform($0)) }
     }
 
-    private func withGitObjects<T>(_ oids: [OID], type: git_object_t, transform: ([OpaquePointer]) -> Result<T, NSError>) -> Result<T, NSError> {
+    private func withGitObjects<T>(_ oids: [OID], type: GitObjectType, transform: ([OpaquePointer]) -> Result<T, NSError>) -> Result<T, NSError> {
         var pointers = [OpaquePointer]()
         defer {
             for pointer in pointers {
@@ -241,7 +242,7 @@ public final class Repository {
         for oid in oids {
             var pointer: OpaquePointer? = nil
             var oid = oid.oid
-            let result = git_object_lookup(&pointer, self.pointer, &oid, type)
+            let result = git_object_lookup(&pointer, self.pointer, &oid, type.git_object_type)
 
             guard result == GIT_OK.rawValue else {
                 return Result.failure(NSError(gitError: result, pointOfFailure: "git_object_lookup"))
@@ -259,26 +260,27 @@ public final class Repository {
     ///
     /// Returns a `Blob`, `Commit`, `Tag`, or `Tree` if one exists, or an error.
     public func object(_ oid: OID) -> Result<ObjectType, NSError> {
-        return withGitObject(oid, type: GIT_OBJECT_ANY) { object in
-            let type = git_object_type(object)
-            if type == Blob.type {
+        return withGitObject(oid, type: .any) { object in
+            let type = GitObjectType(git_object_type(object))
+            switch type {
+            case .blob:
                 return Result.success(Blob(object))
-            } else if type == Commit.type {
+            case .commit:
                 return Result.success(Commit(object))
-            } else if type == Tag.type {
+            case .tag:
                 return Result.success(Tag(object))
-            } else if type == Tree.type {
+            case .tree:
                 return Result.success(Tree(object))
+            default:
+                let error = NSError(
+                    domain: "org.libgit2.SwiftGit2",
+                    code: 1,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Unrecognized git_object_t '\(String(describing: type))' for oid '\(oid)'.",
+                    ]
+                )
+                return Result.failure(error)
             }
-
-            let error = NSError(
-                domain: "org.libgit2.SwiftGit2",
-                code: 1,
-                userInfo: [
-                    NSLocalizedDescriptionKey: "Unrecognized git_object_t '\(type)' for oid '\(oid)'.",
-                ]
-            )
-            return Result.failure(error)
         }
     }
 
@@ -288,7 +290,7 @@ public final class Repository {
     ///
     /// Returns the blob if it exists, or an error.
     public func blob(_ oid: OID) -> Result<Blob, NSError> {
-        return withGitObject(oid, type: GIT_OBJECT_BLOB) { Blob($0) }
+        return withGitObject(oid, type: .blob) { Blob($0) }
     }
 
     /// Loads the commit with the given OID.
@@ -297,7 +299,7 @@ public final class Repository {
     ///
     /// Returns the commit if it exists, or an error.
     public func commit(_ oid: OID) -> Result<Commit, NSError> {
-        return withGitObject(oid, type: GIT_OBJECT_COMMIT) { Commit($0) }
+        return withGitObject(oid, type: .commit) { Commit($0) }
     }
 
     /// Loads the tag with the given OID.
@@ -306,7 +308,7 @@ public final class Repository {
     ///
     /// Returns the tag if it exists, or an error.
     public func tag(_ oid: OID) -> Result<Tag, NSError> {
-        return withGitObject(oid, type: GIT_OBJECT_TAG) { Tag($0) }
+        return withGitObject(oid, type: .tag) { Tag($0) }
     }
 
     /// Loads the tree with the given OID.
@@ -315,7 +317,7 @@ public final class Repository {
     ///
     /// Returns the tree if it exists, or an error.
     public func tree(_ oid: OID) -> Result<Tree, NSError> {
-        return withGitObject(oid, type: GIT_OBJECT_TREE) { Tree($0) }
+        return withGitObject(oid, type: .tree) { Tree($0) }
     }
 
     /// Loads the referenced object from the pointer.
@@ -811,7 +813,7 @@ public final class Repository {
         }
 
         if oldTree != nil && newTree != nil {
-            return withGitObjects([oldTree!.oid, newTree!.oid], type: GIT_OBJECT_TREE) { objects in
+            return withGitObjects([oldTree!.oid, newTree!.oid], type: .tree) { objects in
                 var diff: OpaquePointer? = nil
                 let diffResult = git_diff_tree_to_tree(&diff,
                                                        self.pointer,
@@ -821,7 +823,7 @@ public final class Repository {
                 return processTreeToTreeDiff(diffResult, diff: diff)
             }
         } else if let tree = oldTree {
-            return withGitObject(tree.oid, type: GIT_OBJECT_TREE, transform: { tree in
+            return withGitObject(tree.oid, type: .tree, transform: { tree in
                 var diff: OpaquePointer?
                 let diffResult = git_diff_tree_to_tree(&diff,
                                                        self.pointer,
@@ -831,7 +833,7 @@ public final class Repository {
                 return processTreeToTreeDiff(diffResult, diff: diff)
             })
         } else if let tree = newTree {
-            return withGitObject(tree.oid, type: GIT_OBJECT_TREE, transform: { tree in
+            return withGitObject(tree.oid, type: .tree, transform: { tree in
                 var diff: OpaquePointer?
                 let diffResult = git_diff_tree_to_tree(&diff,
                                                        self.pointer,
@@ -873,7 +875,7 @@ public final class Repository {
     }
 
     private func safeTreeForCommitId(_ oid: OID) -> Result<Tree, NSError> {
-        return withGitObject(oid, type: GIT_OBJECT_COMMIT) { commit in
+        return withGitObject(oid, type: .commit) { commit in
             let treeId = git_commit_tree_id(commit)
             return tree(OID(treeId!.pointee))
         }

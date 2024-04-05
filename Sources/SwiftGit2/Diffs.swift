@@ -13,7 +13,7 @@ public struct StatusEntry {
     public var headToIndex: Diff.Delta?
     public var indexToWorkDir: Diff.Delta?
 
-    public init(from statusEntry: git_status_entry) {
+    init(from statusEntry: git_status_entry) {
         status = Diff.Status(rawValue: statusEntry.status.rawValue)
 
         if let htoi = statusEntry.head_to_index {
@@ -31,14 +31,14 @@ public struct Diff {
     public var deltas = [Delta]()
 
     public struct Delta {
-        public static let type = GIT_OBJECT_REF_DELTA
+        public static let type: GitObjectType = .deltaGivenByObjectID
 
         public var status: Status
         public var flags: Flags
         public var oldFile: File?
         public var newFile: File?
 
-        public init(_ delta: git_diff_delta) {
+        init(_ delta: git_diff_delta) {
             status = Status(rawValue: UInt32(git_diff_status_char(delta.status)))
             flags = Flags(rawValue: delta.flags)
             oldFile = File(delta.old_file)
@@ -52,7 +52,7 @@ public struct Diff {
         public var size: UInt64
         public var flags: Flags
 
-        public init(_ diffFile: git_diff_file) {
+        init(_ diffFile: git_diff_file) {
             oid = OID(diffFile.id)
             let path = diffFile.path
             self.path = path.map(String.init(cString:))!
@@ -102,7 +102,7 @@ public struct Diff {
     }
 
     /// Create an instance with a libgit2 `git_diff`.
-    public init(_ pointer: OpaquePointer) {
+    init(_ pointer: OpaquePointer) {
         for i in 0 ..< git_diff_num_deltas(pointer) {
             if let delta = git_diff_get_delta(pointer, i) {
                 deltas.append(Diff.Delta(delta.pointee))

@@ -37,14 +37,14 @@ public enum Credentials {
 func credentialsCallback(
     cred: UnsafeMutablePointer<UnsafeMutablePointer<git_cred>?>?,
     url: UnsafePointer<CChar>?,
-    username: UnsafePointer<CChar>?,
-    _: UInt32,
+    username_from_url: UnsafePointer<CChar>?,
+    allowed_types: UInt32,
     payload: UnsafeMutableRawPointer?
 ) -> Int32 {
     let result: Int32
 
     // Find username_from_url
-    let name = username.map(String.init(cString:))
+    let name = username_from_url.map(String.init(cString:))
 
     switch Credentials.fromPointer(payload!) {
     case .default:

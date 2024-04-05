@@ -1,14 +1,9 @@
-//
-//  SwiftGit2.swift
-//
-//
-//  Created by Mathijs Bernson on 01/03/2024.
-//
-
 import Foundation
 import libgit2
 
 public class SwiftGit2 {
+    private init() {}
+
     public static func initialize() -> Result<Int, NSError> {
         let status = git_libgit2_init()
         if status < 0 {

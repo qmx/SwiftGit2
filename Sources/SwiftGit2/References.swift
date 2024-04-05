@@ -55,7 +55,7 @@ public struct Reference: ReferenceType, Hashable {
     public let oid: OID
 
     /// Create an instance with a libgit2 `git_reference` object.
-    public init(_ pointer: OpaquePointer) {
+    init(_ pointer: OpaquePointer) {
         let shorthand = String(validatingUTF8: git_reference_shorthand(pointer))!
         longName = String(validatingUTF8: git_reference_name(pointer))!
         shortName = (shorthand == longName ? nil : shorthand)
@@ -96,7 +96,7 @@ public struct Branch: ReferenceType, Hashable {
     /// Create an instance with a libgit2 `git_reference` object.
     ///
     /// Returns `nil` if the pointer isn't a branch.
-    public init?(_ pointer: OpaquePointer) {
+    init?(_ pointer: OpaquePointer) {
         var namePointer: UnsafePointer<Int8>? = nil
         let success = git_branch_name(&namePointer, pointer)
         guard success == GIT_OK.rawValue else {
@@ -120,6 +120,10 @@ public struct Branch: ReferenceType, Hashable {
         }
         commit = PointerTo<Commit>(oid)
     }
+}
+
+extension Branch: Identifiable {
+    public var id: OID { oid }
 }
 
 /// A git tag reference, which can be either a lightweight tag or a Tag object.

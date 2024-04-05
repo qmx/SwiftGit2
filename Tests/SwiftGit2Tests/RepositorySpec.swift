@@ -330,7 +330,7 @@ class RepositorySpec: FixturesSpec {
 
                 let pointer = PointerTo<Commit>(oid)
                 let commit = repo.commit(oid).value!
-                expect(repo.object(from: pointer).value) == commit
+                expect(repo.object(from: pointer).value?.oid) == commit.oid
             }
 
             it("should work with trees") {
@@ -339,7 +339,7 @@ class RepositorySpec: FixturesSpec {
 
                 let pointer = PointerTo<Tree>(oid)
                 let tree = repo.tree(oid).value!
-                expect(repo.object(from: pointer).value) == tree
+                expect(repo.object(from: pointer).value?.oid) == tree.oid
             }
 
             it("should work with blobs") {
@@ -348,7 +348,7 @@ class RepositorySpec: FixturesSpec {
 
                 let pointer = PointerTo<Blob>(oid)
                 let blob = repo.blob(oid).value!
-                expect(repo.object(from: pointer).value) == blob
+                expect(repo.object(from: pointer).value?.oid) == blob.oid
             }
 
             it("should work with tags") {
@@ -357,7 +357,7 @@ class RepositorySpec: FixturesSpec {
 
                 let pointer = PointerTo<Tag>(oid)
                 let tag = repo.tag(oid).value!
-                expect(repo.object(from: pointer).value) == tag
+                expect(repo.object(from: pointer).value?.oid) == tag.oid
             }
         }
 
@@ -623,12 +623,12 @@ class RepositorySpec: FixturesSpec {
                 let oid = OID(string: "315b3f344221db91ddc54b269f3c9af422da0f2e")!
                 expect(repo.HEAD().value?.shortName).to(equal("master"))
 
-                expect(repo.checkout(oid, strategy: CheckoutStrategy.None).error).to(beNil())
+                expect(repo.checkout(oid, strategy: CheckoutStrategy.none).error).to(beNil())
                 let HEAD = repo.HEAD().value
                 expect(HEAD?.longName).to(equal("HEAD"))
                 expect(HEAD?.oid).to(equal(oid))
 
-                expect(repo.checkout(repo.localBranch(named: "master").value!, strategy: CheckoutStrategy.None).error).to(beNil())
+                expect(repo.checkout(repo.localBranch(named: "master").value!, strategy: CheckoutStrategy.none).error).to(beNil())
                 expect(repo.HEAD().value?.shortName).to(equal("master"))
             }
 
@@ -637,7 +637,7 @@ class RepositorySpec: FixturesSpec {
                 let oid = OID(string: "315b3f344221db91ddc54b269f3c9af422da0f2e")!
                 expect(repo.HEAD().value?.shortName).to(equal("master"))
 
-                expect(repo.checkout(oid, strategy: .None, progress: { _, completedSteps, totalSteps in
+                expect(repo.checkout(oid, strategy: .none, progress: { _, completedSteps, totalSteps in
                     expect(completedSteps).to(beLessThanOrEqualTo(totalSteps))
                 }).error).to(beNil())
 
@@ -654,10 +654,10 @@ class RepositorySpec: FixturesSpec {
                 expect(repo.HEAD().value?.longName).to(equal("HEAD"))
 
                 let branch = repo.localBranch(named: "another-branch").value!
-                expect(repo.checkout(branch, strategy: CheckoutStrategy.None).error).to(beNil())
+                expect(repo.checkout(branch, strategy: CheckoutStrategy.none).error).to(beNil())
                 expect(repo.HEAD().value?.shortName).to(equal(branch.name))
 
-                expect(repo.checkout(oid, strategy: CheckoutStrategy.None).error).to(beNil())
+                expect(repo.checkout(oid, strategy: CheckoutStrategy.none).error).to(beNil())
                 expect(repo.HEAD().value?.longName).to(equal("HEAD"))
             }
         }
@@ -693,7 +693,7 @@ class RepositorySpec: FixturesSpec {
             it("Should add the modification under a path") {
                 let repo = Fixtures.simpleRepository
                 let branch = repo.localBranch(named: "master").value!
-                expect(repo.checkout(branch, strategy: CheckoutStrategy.None).error).to(beNil())
+                expect(repo.checkout(branch, strategy: CheckoutStrategy.none).error).to(beNil())
 
                 // make a change to README
                 let readmeURL = repo.directoryURL!.appendingPathComponent("README.md")
@@ -716,7 +716,7 @@ class RepositorySpec: FixturesSpec {
             it("Should add an untracked file under a path") {
                 let repo = Fixtures.simpleRepository
                 let branch = repo.localBranch(named: "master").value!
-                expect(repo.checkout(branch, strategy: CheckoutStrategy.None).error).to(beNil())
+                expect(repo.checkout(branch, strategy: CheckoutStrategy.none).error).to(beNil())
 
                 // make a change to README
                 let untrackedURL = repo.directoryURL!.appendingPathComponent("untracked")
@@ -735,7 +735,7 @@ class RepositorySpec: FixturesSpec {
             it("Should perform a simple commit with specified signature") {
                 let repo = Fixtures.simpleRepository
                 let branch = repo.localBranch(named: "master").value!
-                expect(repo.checkout(branch, strategy: CheckoutStrategy.None).error).to(beNil())
+                expect(repo.checkout(branch, strategy: CheckoutStrategy.none).error).to(beNil())
 
                 // make a change to README
                 let untrackedURL = repo.directoryURL!.appendingPathComponent("untrackedtest")
@@ -770,7 +770,7 @@ class RepositorySpec: FixturesSpec {
 
                 let repo = Fixtures.mantleRepository
                 let branch = repo.localBranch(named: "master").value!
-                expect(repo.checkout(branch, strategy: CheckoutStrategy.None).error).to(beNil())
+                expect(repo.checkout(branch, strategy: CheckoutStrategy.none).error).to(beNil())
 
                 let status = repo.status()
 
@@ -799,7 +799,7 @@ class RepositorySpec: FixturesSpec {
 
                 let repoWithStatus = Fixtures.sharedInstance.repository(named: "repository-with-status")
                 let branchWithStatus = repoWithStatus.localBranch(named: "master").value!
-                expect(repoWithStatus.checkout(branchWithStatus, strategy: CheckoutStrategy.None).error).to(beNil())
+                expect(repoWithStatus.checkout(branchWithStatus, strategy: CheckoutStrategy.none).error).to(beNil())
 
                 let statuses = repoWithStatus.status().value!
 
@@ -866,7 +866,7 @@ class RepositorySpec: FixturesSpec {
 
                 let repo = Fixtures.mantleRepository
                 let branch = repo.localBranch(named: "master").value!
-                expect(repo.checkout(branch, strategy: CheckoutStrategy.None).error).to(beNil())
+                expect(repo.checkout(branch, strategy: CheckoutStrategy.none).error).to(beNil())
 
                 let head = repo.HEAD().value!
                 let commit = repo.object(head.oid).value! as! Commit
@@ -893,7 +893,7 @@ class RepositorySpec: FixturesSpec {
 
                 let repo = Fixtures.mantleRepository
                 expect(repo.checkout(OID(string: "047b931bd7f5478340cef5885a6fff713005f4d6")!,
-                                     strategy: CheckoutStrategy.None).error).to(beNil())
+                                     strategy: CheckoutStrategy.none).error).to(beNil())
                 let head = repo.HEAD().value!
                 let initalCommit = repo.object(head.oid).value! as! Commit
                 let diff = repo.diff(for: initalCommit).value!
@@ -961,7 +961,7 @@ class RepositorySpec: FixturesSpec {
 
                 let repo = Fixtures.mantleRepository
                 expect(repo.checkout(OID(string: "d0d9c13da5eb5f9e8cf2a9f1f6ca3bdbe975b57d")!,
-                                     strategy: CheckoutStrategy.None).error).to(beNil())
+                                     strategy: CheckoutStrategy.none).error).to(beNil())
                 let head = repo.HEAD().value!
                 let initalCommit = repo.object(head.oid).value! as! Commit
                 let diff = repo.diff(for: initalCommit).value!

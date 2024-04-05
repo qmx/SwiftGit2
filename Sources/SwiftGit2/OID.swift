@@ -34,13 +34,13 @@ public struct OID {
     }
 
     /// Create an instance from a libgit2 `git_oid`.
-    public init(_ oid: git_oid) {
+    init(_ oid: git_oid) {
         self.oid = oid
     }
 
     // MARK: - Properties
 
-    public let oid: git_oid
+    let oid: git_oid
 }
 
 extension OID: CustomStringConvertible {
